@@ -6,6 +6,7 @@ import ProductGallery from '../components/product/ProductGallery';
 import ProductInfo from '../components/product/ProductInfo';
 import ProductSpecs from '../components/product/ProductSpecs';
 import ProductReviews from '../components/product/ProductReviews';
+import ProductQA from '../components/product/ProductQA';
 import ProductCard from '../components/home/ProductCard';
 import { getProductBySlug, getRelatedProducts } from '../data/products';
 
@@ -107,9 +108,16 @@ const ProductDetailPage = () => {
                 reviews={product.reviews}
                 rating={product.rating}
                 reviewCount={product.reviewCount}
+                productId={product.id}
               />
             </Grid>
           </Grid>
+        </Box>
+
+        {/* Q&A Section */}
+        <Box sx={{ mt: 8 }}>
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)', mb: 6 }} />
+          <ProductQA productId={product.id} productName={product.name} />
         </Box>
 
         {/* Related Products */}

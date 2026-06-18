@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Button, Rating, Chip, IconButton, Divider } from '@mui/material';
+import { Box, Typography, Button, Rating, Chip, IconButton, Divider, Snackbar, Alert } from '@mui/material';
 import {
   ShoppingCart,
   FavoriteBorder,
@@ -12,6 +12,7 @@ import {
   CheckCircle,
 } from '@mui/icons-material';
 import type { Product } from '../../types/product';
+import { useCart } from '../../contexts/CartContext';
 
 interface ProductInfoProps {
   product: Product;
@@ -20,6 +21,13 @@ interface ProductInfoProps {
 const ProductInfo = ({ product }: ProductInfoProps) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    addToCart(product, quantity, product.colors?.[selectedColor]);
+    setSnackbarOpen(true);
+  };
 
   const discount = product.oldPrice
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
@@ -213,6 +221,7 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
         <Button
           variant="contained"
           size="large"
+          onClick={handleAddToCart}
           startIcon={<ShoppingCart />}
           sx={{
             flex: 1,
@@ -231,6 +240,16 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
         >
           Sepete Ekle
         </Button>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={2000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ borderRadius: '12px' }}>
+            {product.name} sepete eklendi!
+          </Alert>
+        </Snackbar>
         <IconButton
           sx={{
             width: 52,

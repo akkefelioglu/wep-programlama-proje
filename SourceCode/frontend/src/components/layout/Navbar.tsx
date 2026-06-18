@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -16,6 +16,10 @@ import {
   ListItemIcon,
   useMediaQuery,
   useTheme,
+  Menu,
+  MenuItem,
+  Divider,
+  Avatar,
 } from '@mui/material';
 import {
   ShoppingCart,
@@ -27,16 +31,26 @@ import {
   FavoriteBorder,
   Person,
   LocalShipping,
+  Login,
+  Logout,
+  AdminPanelSettings,
+  Receipt,
 } from '@mui/icons-material';
 import { categories } from '../../data/products';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { totalItems } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,7 +63,22 @@ const Navbar = () => {
   useEffect(() => {
     setDrawerOpen(false);
     setSearchOpen(false);
+    setAnchorEl(null);
   }, [location]);
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    handleUserMenuClose();
+    navigate('/');
+  };
 
   return (
     <>
@@ -216,16 +245,97 @@ const Navbar = () => {
               )}
             </Box>
 
-            {/* Action Icons */}
+            {/* Favorites */}
             <IconButton sx={{ color: 'rgba(255,255,255,0.7)', display: { xs: 'none', md: 'flex' } }}>
               <FavoriteBorder />
             </IconButton>
-            <IconButton sx={{ color: 'rgba(255,255,255,0.7)', display: { xs: 'none', md: 'flex' } }}>
-              <Person />
-            </IconButton>
-            <IconButton sx={{ color: 'rgba(255,255,255,0.7)' }}>
+
+            {/* User Menu */}
+            {user ? (
+              <>
+                <IconButton onClick={handleUserMenuOpen} sx={{ p: 0.5 }}>
+                  <Avatar
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      background: user.isAdmin
+                        ? 'linear-gradient(135deg, #00E676, #00D9FF)'
+                        : 'linear-gradient(135deg, #6C63FF, #00D9FF)',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                  </Avatar>
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleUserMenuClose}
+                  slotProps={{
+                    paper: {
+                      sx: {
+                        mt: 1.5,
+                        background: 'rgba(14, 14, 22, 0.95)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '14px',
+                        minWidth: 200,
+                      },
+                    },
+                  }}
+                >
+                  <Box sx={{ px: 2, py: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {user.displayName || user.email}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>
+                      {user.email}
+                    </Typography>
+                  </Box>
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+                  <MenuItem
+                    onClick={() => { navigate('/siparislerim'); handleUserMenuClose(); }}
+                    sx={{ color: 'rgba(255,255,255,0.7)', py: 1.2, '&:hover': { background: 'rgba(108,99,255,0.08)' } }}
+                  >
+                    <Receipt sx={{ mr: 1.5, fontSize: 20, color: '#6C63FF' }} />
+                    Siparişlerim
+                  </MenuItem>
+                  {user.isAdmin && (
+                    <MenuItem
+                      onClick={() => { navigate('/admin'); handleUserMenuClose(); }}
+                      sx={{ color: 'rgba(255,255,255,0.7)', py: 1.2, '&:hover': { background: 'rgba(108,99,255,0.08)' } }}
+                    >
+                      <AdminPanelSettings sx={{ mr: 1.5, fontSize: 20, color: '#00E676' }} />
+                      Admin Paneli
+                    </MenuItem>
+                  )}
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+                  <MenuItem
+                    onClick={handleLogout}
+                    sx={{ color: '#FF4D6A', py: 1.2, '&:hover': { background: 'rgba(255,77,106,0.08)' } }}
+                  >
+                    <Logout sx={{ mr: 1.5, fontSize: 20 }} />
+                    Çıkış Yap
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <IconButton
+                onClick={() => navigate('/giris')}
+                sx={{ color: 'rgba(255,255,255,0.7)', display: { xs: 'none', md: 'flex' } }}
+              >
+                <Person />
+              </IconButton>
+            )}
+
+            {/* Cart */}
+            <IconButton
+              onClick={() => navigate('/sepet')}
+              sx={{ color: 'rgba(255,255,255,0.7)' }}
+            >
               <Badge
-                badgeContent={3}
+                badgeContent={totalItems}
                 sx={{
                   '& .MuiBadge-badge': {
                     background: 'linear-gradient(135deg, #6C63FF, #00D9FF)',
@@ -289,14 +399,46 @@ const Navbar = () => {
               </ListItem>
             </Link>
           ))}
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)', my: 1 }} />
+          {user ? (
+            <>
+              <Link to="/siparislerim">
+                <ListItem sx={{ '&:hover': { background: 'rgba(108,99,255,0.1)' } }}>
+                  <ListItemIcon sx={{ color: '#6C63FF', minWidth: 40 }}><Receipt /></ListItemIcon>
+                  <ListItemText primary="Siparişlerim" sx={{ color: '#fff' }} />
+                </ListItem>
+              </Link>
+              {user.isAdmin && (
+                <Link to="/admin">
+                  <ListItem sx={{ '&:hover': { background: 'rgba(108,99,255,0.1)' } }}>
+                    <ListItemIcon sx={{ color: '#00E676', minWidth: 40 }}><AdminPanelSettings /></ListItemIcon>
+                    <ListItemText primary="Admin Paneli" sx={{ color: '#fff' }} />
+                  </ListItem>
+                </Link>
+              )}
+              <ListItem onClick={handleLogout} sx={{ cursor: 'pointer', '&:hover': { background: 'rgba(255,77,106,0.1)' } }}>
+                <ListItemIcon sx={{ color: '#FF4D6A', minWidth: 40 }}><Logout /></ListItemIcon>
+                <ListItemText primary="Çıkış Yap" sx={{ color: '#FF4D6A' }} />
+              </ListItem>
+            </>
+          ) : (
+            <Link to="/giris">
+              <ListItem sx={{ '&:hover': { background: 'rgba(108,99,255,0.1)' } }}>
+                <ListItemIcon sx={{ color: '#00E676', minWidth: 40 }}><Login /></ListItemIcon>
+                <ListItemText primary="Giriş Yap" sx={{ color: '#fff' }} />
+              </ListItem>
+            </Link>
+          )}
           <ListItem sx={{ '&:hover': { background: 'rgba(108,99,255,0.1)' } }}>
             <ListItemIcon sx={{ color: '#FF4D6A', minWidth: 40 }}><FavoriteBorder /></ListItemIcon>
             <ListItemText primary="Favorilerim" sx={{ color: '#fff' }} />
           </ListItem>
-          <ListItem sx={{ '&:hover': { background: 'rgba(108,99,255,0.1)' } }}>
-            <ListItemIcon sx={{ color: '#00E676', minWidth: 40 }}><LocalShipping /></ListItemIcon>
-            <ListItemText primary="Siparişlerim" sx={{ color: '#fff' }} />
-          </ListItem>
+          <Link to="/sepet">
+            <ListItem sx={{ '&:hover': { background: 'rgba(108,99,255,0.1)' } }}>
+              <ListItemIcon sx={{ color: '#00E676', minWidth: 40 }}><LocalShipping /></ListItemIcon>
+              <ListItemText primary={`Sepetim (${totalItems})`} sx={{ color: '#fff' }} />
+            </ListItem>
+          </Link>
         </List>
       </Drawer>
 
