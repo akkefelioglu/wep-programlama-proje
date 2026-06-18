@@ -20,6 +20,7 @@ interface StatCard {
 
 const AdminDashboard = () => {
   const [orderCount, setOrderCount] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [questionCount, setQuestionCount] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
 
@@ -27,7 +28,11 @@ const AdminDashboard = () => {
     const orders = JSON.parse(localStorage.getItem('orders') || '[]');
     const questions = JSON.parse(localStorage.getItem('productQuestions') || '[]');
     const reviews = JSON.parse(localStorage.getItem('productReviews') || '[]');
+    
     setOrderCount(orders.length);
+    const revenue = orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+    setTotalRevenue(revenue);
+    
     setQuestionCount(questions.length);
     setReviewCount(reviews.length);
   }, []);
@@ -60,10 +65,11 @@ const AdminDashboard = () => {
       gradient: 'linear-gradient(135deg, #00E676, #38F9D7)',
     },
     {
-      title: 'Gelir',
-      value: '₺' + (orderCount * 15000).toLocaleString('tr-TR'),
+      title: 'Toplam Ciro / Net Kâr',
+      value: totalRevenue.toLocaleString('tr-TR') + ' ₺',
       icon: <TrendingUp />,
       gradient: 'linear-gradient(135deg, #FF4D6A, #FF6B8A)',
+      change: `Net Kâr: ${(totalRevenue * 0.20).toLocaleString('tr-TR')} ₺ (%20)`,
     },
     {
       title: 'Aktif Kullanıcılar',
