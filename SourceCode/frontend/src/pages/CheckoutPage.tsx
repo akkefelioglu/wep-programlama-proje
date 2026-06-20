@@ -309,7 +309,7 @@ const CheckoutPage = () => {
                     value={cardNumber}
                     onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
                     required
-                    inputProps={{ maxLength: 19 }}
+                    slotProps={{ htmlInput: { maxLength: 19 } }}
                     placeholder="4242 4242 4242 4242"
                     sx={inputSx}
                   />
@@ -321,7 +321,7 @@ const CheckoutPage = () => {
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(formatExpiry(e.target.value))}
                     required
-                    inputProps={{ maxLength: 5 }}
+                    slotProps={{ htmlInput: { maxLength: 5 } }}
                     placeholder="MM/YY"
                     sx={inputSx}
                   />
@@ -333,7 +333,7 @@ const CheckoutPage = () => {
                     value={cvv}
                     onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 3))}
                     required
-                    inputProps={{ maxLength: 3 }}
+                    slotProps={{ htmlInput: { maxLength: 3 } }}
                     type="password"
                     placeholder="•••"
                     sx={inputSx}

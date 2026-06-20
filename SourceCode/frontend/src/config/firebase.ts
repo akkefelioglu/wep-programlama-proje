@@ -44,50 +44,34 @@ export const isAdminEmail = (email: string | null): boolean => {
 
 // Auth fonksiyonları
 export const loginWithEmail = async (email: string, password: string) => {
-  try {
-    if (auth) {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      return result.user;
-    }
-  } catch {
-    // Firebase başarısız olursa mock auth kullan
+  if (auth && import.meta.env.VITE_FIREBASE_API_KEY) {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    return result.user;
   }
   // Mock auth - demo amaçlı
   return mockLogin(email, password);
 };
 
 export const registerWithEmail = async (email: string, password: string, displayName: string) => {
-  try {
-    if (auth) {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(result.user, { displayName });
-      return result.user;
-    }
-  } catch {
-    // Firebase başarısız olursa mock auth kullan
+  if (auth && import.meta.env.VITE_FIREBASE_API_KEY) {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(result.user, { displayName });
+    return result.user;
   }
   return mockRegister(email, displayName);
 };
 
 export const loginWithGoogle = async () => {
-  try {
-    if (auth && googleProvider) {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
-    }
-  } catch {
-    // Mock auth
+  if (auth && googleProvider && import.meta.env.VITE_FIREBASE_API_KEY) {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
   }
   return mockLogin('google@user.com', 'google');
 };
 
 export const logout = async () => {
-  try {
-    if (auth) {
-      await signOut(auth);
-    }
-  } catch {
-    // ignore
+  if (auth && import.meta.env.VITE_FIREBASE_API_KEY) {
+    await signOut(auth);
   }
   localStorage.removeItem('mockUser');
 };
