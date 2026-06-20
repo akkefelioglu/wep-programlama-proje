@@ -3,6 +3,7 @@ import { Box, Typography, Rating, LinearProgress, Avatar, Button, TextField, Ale
 import { ThumbUp, RateReview } from '@mui/icons-material';
 import type { Review } from '../../types/product';
 import { useAuth } from '../../contexts/AuthContext';
+import { getReviewsByProduct, addReview as apiAddReview } from '../../config/api';
 
 interface ProductReviewsProps {
   reviews: Review[];
@@ -11,41 +12,51 @@ interface ProductReviewsProps {
   productId: number;
 }
 
-interface StoredReview {
-  id: number;
-  productId: number;
-  userName: string;
-  rating: number;
-  date: string;
-  comment: string;
-  helpful: number;
-}
-
 const ProductReviews = ({ reviews, rating, reviewCount, productId }: ProductReviewsProps) => {
   const { user } = useAuth();
-  const [userReviews, setUserReviews] = useState<Review[]>([]);
+  const [backendReviews, setBackendReviews] = useState<Review[]>([]);
   const [newRating, setNewRating] = useState<number | null>(0);
   const [newComment, setNewComment] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Load user-added reviews from localStorage
+  // Backend'den yorumları çek
   useEffect(() => {
-    const stored: StoredReview[] = JSON.parse(localStorage.getItem('productReviews') || '[]');
-    const productReviews = stored
-      .filter((r) => r.productId === productId)
-      .map((r) => ({
-        id: r.id,
-        userName: r.userName,
-        rating: r.rating,
-        date: r.date,
-        comment: r.comment,
-        helpful: r.helpful,
-      }));
-    setUserReviews(productReviews);
+    const fetchReviews = async () => {
+      const data = await getReviewsByProduct(productId);
+      if (data.length > 0) {
+        setBackendReviews(
+          data.map((r) => ({
+            id: r.id || Date.now(),
+            userName: r.userName,
+            rating: r.rating,
+            date: r.date || new Date().toISOString().split('T')[0],
+            comment: r.comment,
+            helpful: r.helpful || 0,
+          }))
+        );
+      } else {
+        // Backend'den veri gelmezse localStorage'dan oku
+        const stored = JSON.parse(localStorage.getItem('productReviews') || '[]');
+        const productReviews = stored
+          .filter((r: { productId: number }) => r.productId === productId)
+          .map((r: { id: number; userName: string; rating: number; date: string; comment: string; helpful: number }) => ({
+            id: r.id,
+            userName: r.userName,
+            rating: r.rating,
+            date: r.date,
+            comment: r.comment,
+            helpful: r.helpful,
+          }));
+        setBackendReviews(productReviews);
+      }
+    };
+
+    fetchReviews();
   }, [productId]);
 
-  const allReviews = [...reviews, ...userReviews];
+  // Backend'den gelen yorumlar varsa onları kullan, yoksa statik + localStorage
+  const allReviews = backendReviews.length > 0 ? backendReviews : reviews;
 
   const ratingDistribution = [5, 4, 3, 2, 1].map((star) => {
     const count = allReviews.filter((r) => Math.round(r.rating) === star).length;
@@ -56,34 +67,35 @@ const ProductReviews = ({ reviews, rating, reviewCount, productId }: ProductRevi
     ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
     : rating;
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (!newRating || !newComment.trim() || !user) return;
 
-    const review: StoredReview = {
-      id: Date.now(),
+    const reviewData = {
       productId,
       userName: user.displayName || user.email || 'Anonim',
+      userEmail: user.email || '',
       rating: newRating,
-      date: new Date().toISOString().split('T')[0],
       comment: newComment.trim(),
+    };
+
+    // Backend'e gönder
+    const result = await apiAddReview(reviewData);
+
+    const newReview: Review = {
+      id: result?.id || Date.now(),
+      userName: reviewData.userName,
+      rating: reviewData.rating,
+      date: new Date().toISOString().split('T')[0],
+      comment: reviewData.comment,
       helpful: 0,
     };
 
-    const stored: StoredReview[] = JSON.parse(localStorage.getItem('productReviews') || '[]');
-    stored.push(review);
+    // localStorage'a da kaydet (fallback)
+    const stored = JSON.parse(localStorage.getItem('productReviews') || '[]');
+    stored.push({ ...newReview, productId });
     localStorage.setItem('productReviews', JSON.stringify(stored));
 
-    setUserReviews((prev) => [
-      ...prev,
-      {
-        id: review.id,
-        userName: review.userName,
-        rating: review.rating,
-        date: review.date,
-        comment: review.comment,
-        helpful: 0,
-      },
-    ]);
+    setBackendReviews((prev) => [...prev, newReview]);
 
     setNewRating(0);
     setNewComment('');
@@ -136,7 +148,7 @@ const ProductReviews = ({ reviews, rating, reviewCount, productId }: ProductRevi
           </Typography>
           <Rating value={avgRating} precision={0.1} readOnly sx={{ mb: 0.5 }} />
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-            {reviewCount + userReviews.length} değerlendirme
+            {allReviews.length || reviewCount} değerlendirme
           </Typography>
         </Box>
 

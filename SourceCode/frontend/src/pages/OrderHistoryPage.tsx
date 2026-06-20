@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Schedule,
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import { getOrdersByUser, type OrderDTO } from '../config/api';
 
 interface OrderItem {
   name: string;
@@ -24,10 +26,21 @@ interface OrderItem {
   image: string;
 }
 
-interface Order {
+interface LocalOrder {
   id: string;
   date: string;
   items: OrderItem[];
+  total: number;
+  status: string;
+  cardLast4: string;
+  shippingAddress: string;
+}
+
+// Birleştirilmiş sipariş tipi
+interface DisplayOrder {
+  id: string;
+  date: string;
+  items: { name: string; quantity: number; price: number; image: string }[];
   total: number;
   status: string;
   cardLast4: string;
@@ -58,12 +71,43 @@ const statusConfig: Record<string, { color: string; icon: React.ReactNode; bg: s
 };
 
 const OrderHistoryPage = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<DisplayOrder[]>([]);
 
   useEffect(() => {
-    const savedOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-    setOrders(savedOrders);
-  }, []);
+    const fetchOrders = async () => {
+      if (user?.email) {
+        // Backend'den siparişleri çek
+        const backendOrders = await getOrdersByUser(user.email);
+
+        if (backendOrders.length > 0 && 'orderNumber' in backendOrders[0]) {
+          // Backend'den gelen siparişleri dönüştür
+          const mapped: DisplayOrder[] = (backendOrders as OrderDTO[]).map((o) => ({
+            id: o.orderNumber,
+            date: o.createdAt,
+            items: o.items.map((item) => ({
+              name: item.productName,
+              quantity: item.quantity,
+              price: typeof item.price === 'number' ? item.price : parseFloat(String(item.price)),
+              image: item.productImage || '/images/smartphone.png',
+            })),
+            total: typeof o.total === 'number' ? o.total : parseFloat(String(o.total)),
+            status: o.status,
+            cardLast4: o.cardLast4 || '****',
+            shippingAddress: o.shippingAddress || '',
+          }));
+          setOrders(mapped);
+          return;
+        }
+      }
+
+      // Fallback: localStorage'dan oku
+      const savedOrders: LocalOrder[] = JSON.parse(localStorage.getItem('orders') || '[]');
+      setOrders(savedOrders);
+    };
+
+    fetchOrders();
+  }, [user]);
 
   if (orders.length === 0) {
     return (

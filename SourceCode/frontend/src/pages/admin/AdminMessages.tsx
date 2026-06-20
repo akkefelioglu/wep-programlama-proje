@@ -16,6 +16,11 @@ import {
   CheckCircle,
   Schedule,
 } from '@mui/icons-material';
+import {
+  getAllQuestions,
+  answerQuestion as apiAnswerQuestion,
+  type QuestionDTO,
+} from '../../config/api';
 
 interface Question {
   id: string;
@@ -35,16 +40,48 @@ const AdminMessages = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
 
   useEffect(() => {
-    const allQuestions: Question[] = JSON.parse(
-      localStorage.getItem('productQuestions') || '[]'
-    );
-    setQuestions(allQuestions);
+    const fetchQuestions = async () => {
+      // Backend'den soruları çek
+      const data = await getAllQuestions();
+
+      if (data.length > 0 && 'questionDate' in data[0]) {
+        // Backend verisi
+        setQuestions(
+          (data as QuestionDTO[]).map((q) => ({
+            id: String(q.id || 'Q-' + Date.now()),
+            productId: q.productId,
+            userName: q.userName,
+            userEmail: q.userEmail,
+            question: q.question,
+            date: q.questionDate || new Date().toISOString(),
+            answer: q.answer,
+            answeredBy: q.answeredBy,
+            answeredDate: q.answerDate,
+          }))
+        );
+      } else {
+        // localStorage fallback
+        const allQuestions: Question[] = JSON.parse(
+          localStorage.getItem('productQuestions') || '[]'
+        );
+        setQuestions(allQuestions);
+      }
+    };
+
+    fetchQuestions();
   }, []);
 
-  const handleAnswer = (questionId: string) => {
+  const handleAnswer = async (questionId: string) => {
     const answerText = answers[questionId];
     if (!answerText?.trim()) return;
 
+    // Backend'e gönder
+    const numericId = parseInt(questionId);
+    if (!isNaN(numericId)) {
+      await apiAnswerQuestion(numericId, answerText.trim(), 'BritMart Admin');
+    }
+
+    // Local state güncelle
     const updated = questions.map((q) =>
       q.id === questionId
         ? {
@@ -57,6 +94,7 @@ const AdminMessages = () => {
     );
 
     setQuestions(updated);
+    // localStorage'ı da güncelle (fallback)
     localStorage.setItem('productQuestions', JSON.stringify(updated));
     setAnswers((prev) => ({ ...prev, [questionId]: '' }));
     setSnackbar({ open: true, message: 'Cevap başarıyla gönderildi!' });

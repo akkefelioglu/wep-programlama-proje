@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { processPayment } from '../config/api';
 
 interface OrderRecord {
   id: string;
@@ -83,38 +84,66 @@ const CheckoutPage = () => {
 
     setLoading(true);
 
-    // Stripe ödeme simülasyonu
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // Backend'e Stripe ödeme isteği gönder
+      const paymentResult = await processPayment(
+        {
+          cardNumber: cardNumber.replace(/\s/g, ''),
+          expiryDate,
+          cvv,
+          cardName,
+          shippingAddress: `${address}, ${city}`,
+          amount: totalPrice,
+          items: items.map((item) => ({
+            productId: item.product.id,
+            productName: item.product.name,
+            productImage: item.product.image,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+        },
+        user.email || 'guest@britmart.co.uk',
+        user.displayName || 'Misafir'
+      );
 
-    // Sipariş kaydı oluştur
-    const order: OrderRecord = {
-      id: 'ORD-' + Date.now(),
-      date: new Date().toISOString(),
-      items: items.map((item) => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price,
-        image: item.product.image,
-      })),
-      total: totalPrice,
-      status: 'Onaylandı',
-      cardLast4: cardNumber.replace(/\s/g, '').slice(-4),
-      shippingAddress: `${address}, ${city}`,
-    };
+      if (!paymentResult.success) {
+        setError('Ödeme işlemi başarısız oldu. Lütfen tekrar deneyin.');
+        setLoading(false);
+        return;
+      }
 
-    // Sipariş geçmişine kaydet
-    const existingOrders: OrderRecord[] = JSON.parse(localStorage.getItem('orders') || '[]');
-    existingOrders.unshift(order);
-    localStorage.setItem('orders', JSON.stringify(existingOrders));
+      // Sipariş kaydını localStorage'a da kaydet (frontend fallback)
+      const order: OrderRecord = {
+        id: paymentResult.orderId,
+        date: new Date().toISOString(),
+        items: items.map((item) => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+          image: item.product.image,
+        })),
+        total: totalPrice,
+        status: 'Onaylandı',
+        cardLast4: cardNumber.replace(/\s/g, '').slice(-4),
+        shippingAddress: `${address}, ${city}`,
+      };
 
-    setSuccess(true);
-    setLoading(false);
-    clearCart();
+      const existingOrders: OrderRecord[] = JSON.parse(localStorage.getItem('orders') || '[]');
+      existingOrders.unshift(order);
+      localStorage.setItem('orders', JSON.stringify(existingOrders));
 
-    // 3 saniye sonra siparişlerim sayfasına yönlendir
-    setTimeout(() => {
-      navigate('/siparislerim');
-    }, 3000);
+      setSuccess(true);
+      setLoading(false);
+      clearCart();
+
+      // 3 saniye sonra siparişlerim sayfasına yönlendir
+      setTimeout(() => {
+        navigate('/siparislerim');
+      }, 3000);
+    } catch {
+      setError('Ödeme sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      setLoading(false);
+    }
   };
 
   const inputSx = {

@@ -20,8 +20,8 @@ Bu projede **BritMart** adında İngiltere merkezli bir online perakende e-ticar
 | Material UI | 6.x | Bileşen kütüphanesi ve modern tasarım |
 | Spring Boot | 3.2.x | Backend API ve İş Mantığı (RESTful) |
 | PostgreSQL | 16.x | İlişkisel Veritabanı Yönetimi |
-| Firebase Auth | 9.x | Kullanıcı Kimlik Doğrulama |
-| Stripe | 25.x | Ödeme Altyapısı (Test Modu) |
+| Firebase Auth | 9.x | Kullanıcı Kimlik Doğrulama (Tam Entegre) |
+| Stripe Java SDK | 25.x | Ödeme Altyapısı (PaymentIntent Entegrasyonu) |
 
 ---
 

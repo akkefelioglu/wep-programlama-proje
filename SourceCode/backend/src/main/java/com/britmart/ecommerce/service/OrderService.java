@@ -26,37 +26,55 @@ public class OrderService {
 
     @Transactional
     public PaymentResponseDTO processPayment(PaymentRequestDTO request, String userEmail, String userName) {
-        // Stripe entegrasyonu burada yapılacak
-        // Demo için simülasyon
+        try {
+            // Stripe PaymentIntent oluştur
+            com.stripe.param.PaymentIntentCreateParams params =
+                    com.stripe.param.PaymentIntentCreateParams.builder()
+                            .setAmount(request.getAmount().longValue() * 100L) // Kuruş cinsinden
+                            .setCurrency("try")
+                            .setDescription("BritMart Siparişi: " + userEmail)
+                            .setReceiptEmail(userEmail)
+                            .build();
 
-        Order order = Order.builder()
-                .userEmail(userEmail)
-                .userName(userName)
-                .total(request.getAmount())
-                .cardLast4(request.getCardNumber().substring(request.getCardNumber().length() - 4))
-                .shippingAddress(request.getShippingAddress())
-                .status("Onaylandı")
-                .build();
+            com.stripe.model.PaymentIntent intent = com.stripe.model.PaymentIntent.create(params);
 
-        List<OrderItem> items = request.getItems().stream()
-                .map(item -> OrderItem.builder()
-                        .order(order)
-                        .productName(item.getProductName())
-                        .productImage(item.getProductImage())
-                        .quantity(item.getQuantity())
-                        .price(item.getPrice())
-                        .build())
-                .collect(Collectors.toList());
-        order.setItems(items);
+            // Veritabanına siparişi kaydet
+            Order order = Order.builder()
+                    .userEmail(userEmail)
+                    .userName(userName)
+                    .total(request.getAmount())
+                    .cardLast4(request.getCardNumber().substring(request.getCardNumber().length() - 4))
+                    .shippingAddress(request.getShippingAddress())
+                    .status("Onaylandı")
+                    .build();
 
-        Order savedOrder = orderRepository.save(order);
+            List<OrderItem> items = request.getItems().stream()
+                    .map(item -> OrderItem.builder()
+                            .order(order)
+                            .productName(item.getProductName())
+                            .productImage(item.getProductImage())
+                            .quantity(item.getQuantity())
+                            .price(item.getPrice())
+                            .build())
+                    .collect(Collectors.toList());
+            order.setItems(items);
 
-        return PaymentResponseDTO.builder()
-                .success(true)
-                .orderId(savedOrder.getOrderNumber())
-                .message("Ödeme başarıyla tamamlandı")
-                .transactionId("TXN-" + System.currentTimeMillis())
-                .build();
+            Order savedOrder = orderRepository.save(order);
+
+            return PaymentResponseDTO.builder()
+                    .success(true)
+                    .orderId(savedOrder.getOrderNumber())
+                    .message("Ödeme başarıyla tamamlandı")
+                    .transactionId(intent.getId())
+                    .build();
+
+        } catch (com.stripe.exception.StripeException e) {
+            System.err.println("Stripe Ödeme Hatası: " + e.getMessage());
+            return PaymentResponseDTO.builder()
+                    .success(false)
+                    .message("Ödeme işlemi sırasında bir hata oluştu: " + e.getMessage())
+                    .build();
+        }
     }
 
     private OrderDTO toDTO(Order order) {

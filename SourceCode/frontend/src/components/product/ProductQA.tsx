@@ -14,6 +14,11 @@ import {
   AdminPanelSettings,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  getQuestionsByProduct,
+  askQuestion as apiAskQuestion,
+  type QuestionDTO,
+} from '../../config/api';
 
 interface Question {
   id: string;
@@ -38,23 +43,56 @@ const ProductQA = ({ productId, productName }: ProductQAProps) => {
   const [newQuestion, setNewQuestion] = useState('');
 
   useEffect(() => {
-    // Load questions from localStorage
-    const allQuestions: Question[] = JSON.parse(localStorage.getItem('productQuestions') || '[]');
-    setQuestions(allQuestions.filter((q) => q.productId === productId));
+    const fetchQuestions = async () => {
+      // Backend'den soruları çek
+      const data = await getQuestionsByProduct(productId);
+      if (data.length > 0) {
+        setQuestions(
+          data.map((q: QuestionDTO) => ({
+            id: String(q.id || 'Q-' + Date.now()),
+            productId: q.productId,
+            userName: q.userName,
+            userEmail: q.userEmail,
+            question: q.question,
+            date: q.questionDate || new Date().toISOString(),
+            answer: q.answer,
+            answeredBy: q.answeredBy,
+            answeredDate: q.answerDate,
+          }))
+        );
+      } else {
+        // localStorage fallback
+        const allQuestions: Question[] = JSON.parse(localStorage.getItem('productQuestions') || '[]');
+        setQuestions(allQuestions.filter((q) => q.productId === productId));
+      }
+    };
+
+    fetchQuestions();
   }, [productId]);
 
-  const handleSubmitQuestion = () => {
+  const handleSubmitQuestion = async () => {
     if (!newQuestion.trim() || !user) return;
 
-    const question: Question = {
-      id: 'Q-' + Date.now(),
+    const questionData: QuestionDTO = {
       productId,
       userName: user.displayName || user.email || 'Anonim',
       userEmail: user.email || '',
       question: newQuestion.trim(),
+    };
+
+    // Backend'e gönder
+    const result = await apiAskQuestion(questionData);
+
+    const question: Question = {
+      id: result?.id ? String(result.id) : 'Q-' + Date.now(),
+      productId,
+      userName: questionData.userName,
+      userEmail: questionData.userEmail,
+      question: questionData.question,
       date: new Date().toISOString(),
     };
 
+    // localStorage'a da kaydet (fallback & admin panel)
     const allQuestions: Question[] = JSON.parse(localStorage.getItem('productQuestions') || '[]');
     allQuestions.push(question);
     localStorage.setItem('productQuestions', JSON.stringify(allQuestions));
